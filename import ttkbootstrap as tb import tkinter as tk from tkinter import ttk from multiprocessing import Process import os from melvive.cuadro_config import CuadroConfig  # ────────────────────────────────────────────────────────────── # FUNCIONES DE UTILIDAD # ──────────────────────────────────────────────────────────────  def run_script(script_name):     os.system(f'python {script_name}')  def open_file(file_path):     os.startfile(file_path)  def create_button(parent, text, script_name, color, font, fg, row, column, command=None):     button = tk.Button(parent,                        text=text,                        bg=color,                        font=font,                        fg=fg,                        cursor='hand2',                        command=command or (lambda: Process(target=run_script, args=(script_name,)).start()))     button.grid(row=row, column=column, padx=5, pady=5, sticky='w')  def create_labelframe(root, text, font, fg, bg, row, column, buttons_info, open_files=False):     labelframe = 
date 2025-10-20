@@ -1,0 +1,55 @@
+import ttkbootstrap as tb
+import tkinter as tk
+from tkinter import ttk
+from multiprocessing import Process
+import os
+from melvive.cuadro_config import CuadroConfig
+
+# ──────────────────────────────────────────────────────────────
+# FUNCIONES DE UTILIDAD
+# ──────────────────────────────────────────────────────────────
+
+def run_script(script_name):
+    os.system(f'python {script_name}')
+
+def open_file(file_path):
+    os.startfile(file_path)
+
+def create_button(parent, text, script_name, color, font, fg, row, column, command=None):
+    button = tk.Button(parent,
+                       text=text,
+                       bg=color,
+                       font=font,
+                       fg=fg,
+                       cursor='hand2',
+                       command=command or (lambda: Process(target=run_script, args=(script_name,)).start()))
+    button.grid(row=row, column=column, padx=5, pady=5, sticky='w')
+
+def create_labelframe(root, text, font, fg, bg, row, column, buttons_info, open_files=False):
+    labelframe = tk.LabelFrame(root,
+                               text=text,
+                               font=font,
+                               bg=bg,
+                               fg=fg,
+                               padx=10, pady=5)
+    labelframe.grid(row=row, column=column, padx=5, pady=5, sticky='nsew')
+    buttons_info.sort(key=lambda x: x['text'])
+
+    for i, button_info in enumerate(buttons_info):
+        command = (lambda file=button_info['file']: open_file(file)) if open_files else None
+        create_button(labelframe,
+                      text=button_info['text'],
+                      script_name=button_info.get('script', ''),
+                      color=button_info['color'],
+                      font=button_info['font'],
+                      fg=button_info['fg'],
+                      row=i,
+                      column=0,
+                      command=command)
+    return labelframe
+
+# ──────────────────────────────────────────────────────────────
+# CONFIGURACIÓN DE BOTONES
+# ──────────────────────────────────────────────────────────────
+
+fu
