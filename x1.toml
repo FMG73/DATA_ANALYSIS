@@ -1,0 +1,23 @@
+output_folder = "xml_generados"
+namespace_unit = "http://www.arval.com/Silverstone/CarDataUnit/1.0"
+
+required_fields = [
+    "vin",
+    "registrationNumber",
+    "brand",
+    "model",
+    "modelYear",
+    "engineSize",
+    "engineSize_UOM",
+    "power",
+    "power_UOM",
+    "mainEnergy",
+    "gearType",
+    "nrOfGears",
+    "co2Emission",
+    "co2Emission_UOM",
+    "referencePriceAmount",
+    "referencePriceAmount_UOM",
+    "referenceSource",
+    "pictureURL"
+]
