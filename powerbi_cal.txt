@@ -1,0 +1,469 @@
+let
+
+    /*****************************************************************
+      DIMENSIÓN FECHA CORPORATIVA
+
+      OBJETIVO
+      --------
+      Crear una tabla calendario reutilizable para Power BI.
+
+      CARACTERÍSTICAS
+      ---------------
+      - Rango dinámico basado en tablas de hechos
+      - Atributos de año, trimestre, mes, semana y día
+      - Flags temporales para análisis
+      - Claves de ordenación
+      - Lista para marcar como Tabla de Fechas
+
+      IMPORTANTE
+      ----------
+      Si añades nuevas tablas de hechos,
+      incorpora sus fechas en FechaMinima y FechaMaxima.
+    *****************************************************************/
+
+
+    //---------------------------------------------------------
+    // FECHA MÍNIMA DEL MODELO
+    //---------------------------------------------------------
+
+    FechaMinima =
+        List.Min(
+            {
+                List.Min(FactVentas[FechaVenta]),
+                List.Min(FactMantenimiento[Fecha])
+            }
+        ),
+
+    //---------------------------------------------------------
+    // FECHA MÁXIMA DEL MODELO
+    //---------------------------------------------------------
+
+    FechaMaxima =
+        List.Max(
+            {
+                List.Max(FactVentas[FechaVenta]),
+                List.Max(FactMantenimiento[Fecha])
+            }
+        ),
+
+    //---------------------------------------------------------
+    // CANTIDAD DE DÍAS DEL CALENDARIO
+    //---------------------------------------------------------
+
+    NumeroDias =
+        Duration.Days(
+            FechaMaxima - FechaMinima
+        ) + 1,
+
+    //---------------------------------------------------------
+    // GENERAR LISTA DE FECHAS
+    //---------------------------------------------------------
+
+    ListaFechas =
+        List.Dates(
+            FechaMinima,
+            NumeroDias,
+            #duration(1,0,0,0)
+        ),
+
+    //---------------------------------------------------------
+    // CONVERTIR LISTA EN TABLA
+    //---------------------------------------------------------
+
+    TablaFechas =
+        Table.FromList(
+            ListaFechas,
+            Splitter.SplitByNothing(),
+            {"Fecha"}
+        ),
+
+    //---------------------------------------------------------
+    // DEFINIR TIPO DATE
+    //---------------------------------------------------------
+
+    TipoFecha =
+        Table.TransformColumnTypes(
+            TablaFechas,
+            {{"Fecha", type date}}
+        ),
+
+    //---------------------------------------------------------
+    // FECHA ACTUAL DEL SISTEMA
+    //---------------------------------------------------------
+
+    FechaHoy =
+        Date.From(
+            DateTime.LocalNow()
+        ),
+
+    //---------------------------------------------------------
+    // AÑO
+    //---------------------------------------------------------
+
+    Año =
+        Table.AddColumn(
+            TipoFecha,
+            "Año",
+            each Date.Year([Fecha]),
+            Int64.Type
+        ),
+
+    AñoCorto =
+        Table.AddColumn(
+            Año,
+            "AñoCorto",
+            each Number.Mod([Año],100),
+            Int64.Type
+        ),
+
+    //---------------------------------------------------------
+    // MES
+    //---------------------------------------------------------
+
+    Mes =
+        Table.AddColumn(
+            AñoCorto,
+            "Mes",
+            each Date.Month([Fecha]),
+            Int64.Type
+        ),
+
+    NombreMes =
+        Table.AddColumn(
+            Mes,
+            "NombreMes",
+            each Date.MonthName([Fecha]),
+            type text
+        ),
+
+    MesCorto =
+        Table.AddColumn(
+            NombreMes,
+            "MesCorto",
+            each Text.Start(
+                Date.MonthName([Fecha]),
+                3
+            ),
+            type text
+        ),
+
+    AñoMes =
+        Table.AddColumn(
+            MesCorto,
+            "AñoMes",
+            each Date.ToText(
+                [Fecha],
+                "yyyy-MM"
+            ),
+            type text
+        ),
+
+    //---------------------------------------------------------
+    // TRIMESTRE
+    //---------------------------------------------------------
+
+    TrimestreNumero =
+        Table.AddColumn(
+            AñoMes,
+            "TrimestreNumero",
+            each Date.QuarterOfYear([Fecha]),
+            Int64.Type
+        ),
+
+    Trimestre =
+        Table.AddColumn(
+            TrimestreNumero,
+            "Trimestre",
+            each "Q" &
+                 Text.From(
+                    [TrimestreNumero]
+                 ),
+            type text
+        ),
+
+    AñoTrimestre =
+        Table.AddColumn(
+            Trimestre,
+            "AñoTrimestre",
+            each Text.From([Año])
+                 & "-Q"
+                 & Text.From([TrimestreNumero]),
+            type text
+        ),
+
+    //---------------------------------------------------------
+    // SEMESTRE
+    //---------------------------------------------------------
+
+    Semestre =
+        Table.AddColumn(
+            AñoTrimestre,
+            "Semestre",
+            each if [Mes] <= 6
+            then "S1"
+            else "S2",
+            type text
+        ),
+
+    //---------------------------------------------------------
+    // SEMANA
+    //---------------------------------------------------------
+
+    SemanaAnio =
+        Table.AddColumn(
+            Semestre,
+            "SemanaAnio",
+            each Date.WeekOfYear([Fecha]),
+            Int64.Type
+        ),
+
+    AñoSemana =
+        Table.AddColumn(
+            SemanaAnio,
+            "AñoSemana",
+            each Text.From([Año])
+                & "-"
+                & Text.PadStart(
+                    Text.From([SemanaAnio]),
+                    2,
+                    "0"
+                ),
+            type text
+        ),
+
+    //---------------------------------------------------------
+    // DÍA
+    //---------------------------------------------------------
+
+    Dia =
+        Table.AddColumn(
+            AñoSemana,
+            "Dia",
+            each Date.Day([Fecha]),
+            Int64.Type
+        ),
+
+    DiaAño =
+        Table.AddColumn(
+            Dia,
+            "DiaAño",
+            each Date.DayOfYear([Fecha]),
+            Int64.Type
+        ),
+
+    //---------------------------------------------------------
+    // DÍA DE LA SEMANA
+    //---------------------------------------------------------
+
+    NumeroDiaSemana =
+        Table.AddColumn(
+            DiaAño,
+            "NumeroDiaSemana",
+            each Date.DayOfWeek(
+                [Fecha],
+                Day.Monday
+            ) + 1,
+            Int64.Type
+        ),
+
+    NombreDiaSemana =
+        Table.AddColumn(
+            NumeroDiaSemana,
+            "NombreDiaSemana",
+            each Date.DayOfWeekName([Fecha]),
+            type text
+        ),
+
+    DiaSemanaCorto =
+        Table.AddColumn(
+            NombreDiaSemana,
+            "DiaSemanaCorto",
+            each Text.Start(
+                Date.DayOfWeekName([Fecha]),
+                3
+            ),
+            type text
+        ),
+
+    //---------------------------------------------------------
+    // FIN DE SEMANA
+    //---------------------------------------------------------
+
+    FinDeSemana =
+        Table.AddColumn(
+            DiaSemanaCorto,
+            "FinDeSemana",
+            each if [NumeroDiaSemana] >= 6
+            then "Sí"
+            else "No",
+            type text
+        ),
+
+    EsLaborable =
+        Table.AddColumn(
+            FinDeSemana,
+            "EsLaborable",
+            each if [NumeroDiaSemana] <= 5
+            then "Sí"
+            else "No",
+            type text
+        ),
+
+    //---------------------------------------------------------
+    // FLAGS DE TIEMPO
+    //---------------------------------------------------------
+
+    EsHoy =
+        Table.AddColumn(
+            EsLaborable,
+            "EsHoy",
+            each [Fecha] = FechaHoy,
+            type logical
+        ),
+
+    EsAyer =
+        Table.AddColumn(
+            EsHoy,
+            "EsAyer",
+            each [Fecha] = Date.AddDays(FechaHoy,-1),
+            type logical
+        ),
+
+    EsMesActual =
+        Table.AddColumn(
+            EsAyer,
+            "EsMesActual",
+            each Date.Year([Fecha]) = Date.Year(FechaHoy)
+             and Date.Month([Fecha]) = Date.Month(FechaHoy),
+            type logical
+        ),
+
+    EsTrimestreActual =
+        Table.AddColumn(
+            EsMesActual,
+            "EsTrimestreActual",
+            each Date.Year([Fecha]) = Date.Year(FechaHoy)
+             and Date.QuarterOfYear([Fecha]) =
+                 Date.QuarterOfYear(FechaHoy),
+            type logical
+        ),
+
+    EsAñoActual =
+        Table.AddColumn(
+            EsTrimestreActual,
+            "EsAñoActual",
+            each Date.Year([Fecha]) =
+                 Date.Year(FechaHoy),
+            type logical
+        ),
+
+    //---------------------------------------------------------
+    // ÚLTIMOS PERIODOS
+    //---------------------------------------------------------
+
+    EsUltimos7Dias =
+        Table.AddColumn(
+            EsAñoActual,
+            "EsUltimos7Dias",
+            each [Fecha] >= Date.AddDays(FechaHoy,-7)
+             and [Fecha] <= FechaHoy,
+            type logical
+        ),
+
+    EsUltimos30Dias =
+        Table.AddColumn(
+            EsUltimos7Dias,
+            "EsUltimos30Dias",
+            each [Fecha] >= Date.AddDays(FechaHoy,-30)
+             and [Fecha] <= FechaHoy,
+            type logical
+        ),
+
+    EsUltimos90Dias =
+        Table.AddColumn(
+            EsUltimos30Dias,
+            "EsUltimos90Dias",
+            each [Fecha] >= Date.AddDays(FechaHoy,-90)
+             and [Fecha] <= FechaHoy,
+            type logical
+        ),
+
+    //---------------------------------------------------------
+    // INICIO / FIN DE MES
+    //---------------------------------------------------------
+
+    EsInicioMes =
+        Table.AddColumn(
+            EsUltimos90Dias,
+            "EsInicioMes",
+            each Date.Day([Fecha]) = 1,
+            type logical
+        ),
+
+    EsFinMes =
+        Table.AddColumn(
+            EsInicioMes,
+            "EsFinMes",
+            each [Fecha] =
+                 Date.EndOfMonth([Fecha]),
+            type logical
+        ),
+
+    //---------------------------------------------------------
+    // FIN DE TRIMESTRE
+    //---------------------------------------------------------
+
+    EsFinTrimestre =
+        Table.AddColumn(
+            EsFinMes,
+            "EsFinTrimestre",
+            each [Fecha] =
+                 Date.EndOfQuarter([Fecha]),
+            type logical
+        ),
+
+    //---------------------------------------------------------
+    // FIN DE AÑO
+    //---------------------------------------------------------
+
+    EsFinAño =
+        Table.AddColumn(
+            EsFinTrimestre,
+            "EsFinAño",
+            each [Fecha] =
+                 Date.EndOfYear([Fecha]),
+            type logical
+        ),
+
+    //---------------------------------------------------------
+    // ORDENACIONES
+    //---------------------------------------------------------
+
+    OrdenMes =
+        Table.AddColumn(
+            EsFinAño,
+            "OrdenMes",
+            each [Año] * 100 + [Mes],
+            Int64.Type
+        ),
+
+    OrdenTrimestre =
+        Table.AddColumn(
+            OrdenMes,
+            "OrdenTrimestre",
+            each [Año] * 10 +
+                 [TrimestreNumero],
+            Int64.Type
+        ),
+
+    OrdenSemana =
+        Table.AddColumn(
+            OrdenTrimestre,
+            "OrdenSemana",
+            each [Año] * 100 +
+                 [SemanaAnio],
+            Int64.Type
+        )
+
+in
+    OrdenSemana
