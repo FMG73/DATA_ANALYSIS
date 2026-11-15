@@ -1,0 +1,52 @@
+(json as any, optional ruta as nullable text) as table =>
+let
+    RutaActual = if ruta = null then "" else ruta,
+
+    Resultado =
+        if Value.Is(json, type record) then
+            let
+                Campos = Record.FieldNames(json),
+
+                Tablas = List.Transform(
+                    Campos,
+                    (campo) =>
+                        @aplanar(
+                            Record.Field(json, campo),
+                            if RutaActual = ""
+                            then campo
+                            else RutaActual & "." & campo
+                        )
+                ),
+
+                Combinado =
+                    if List.IsEmpty(Tablas)
+                    then #table({"Ruta", "Valor"}, {})
+                    else Table.Combine(Tablas)
+            in
+                Combinado
+
+        else if Value.Is(json, type list) then
+            let
+                Elementos = List.Transform(
+                    List.Positions(json),
+                    (indice) =>
+                        @aplanar(
+                            json{indice},
+                            RutaActual & "[" & Text.From(indice) & "]"
+                        )
+                ),
+
+                Combinado =
+                    if List.IsEmpty(Elementos)
+                    then #table({"Ruta", "Valor"}, {})
+                    else Table.Combine(Elementos)
+            in
+                Combinado
+
+        else
+            #table(
+                {"Ruta", "Valor"},
+                {{RutaActual, if json = null then null else Text.From(json)}}
+            )
+in
+    Resultado
