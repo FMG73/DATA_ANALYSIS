@@ -1,0 +1,7 @@
+Text.Combine(
+    List.Transform(
+        Text.Split([Ruta], "["),
+        each Text.BeforeDelimiter(_, "]", 0)
+    ),
+    ""
+)
