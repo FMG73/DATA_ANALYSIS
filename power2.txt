@@ -1,7 +1,14 @@
-Text.Combine(
-    List.Transform(
-        Text.Split([Ruta], "["),
-        each Text.BeforeDelimiter(_, "]", 0)
-    ),
-    ""
-)
+let
+    Partes = Text.Split([Ruta], "["),
+    Resultado = Text.Combine(
+        List.Transform(
+            Partes,
+            each
+                if Text.Contains(_, "]")
+                then Text.AfterDelimiter(_, "]")
+                else _
+        ),
+        ""
+    )
+in
+    Resultado
